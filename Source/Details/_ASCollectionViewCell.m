@@ -17,6 +17,7 @@
 
 #import "_ASCollectionViewCell.h"
 #import <AsyncDisplayKit/ASCellNode+Internal.h>
+#import <AsyncDisplayKit/ASDisplayNode+ASFocus.h>
 #import <AsyncDisplayKit/ASCollectionElement.h>
 #import <AsyncDisplayKit/ASInternalHelpers.h>
 
@@ -52,6 +53,50 @@
   [self.node cellNodeVisibilityEvent:event inScrollView:scrollView withCellFrame:self.frame];
 }
 
+// Focus Engine
+- (void)setNeedsFocusUpdate
+{
+  ASCellNode *node = self.node;
+  return [node setNeedsFocusUpdate];
+}
+
+- (void)updateFocusIfNeeded
+{
+  ASCellNode *node = self.node;
+  return [node updateFocusIfNeeded];
+}
+
+- (BOOL)canBecomeFocused
+{
+  ASCellNode *node = self.node;
+  return [node _canBecomeFocused];
+}
+
+- (BOOL)shouldUpdateFocusInContext:(UIFocusUpdateContext *)context
+{
+  ASCellNode *node = self.node;
+  return [node _shouldUpdateFocusInContext:context];
+}
+
+- (void)didUpdateFocusInContext:(UIFocusUpdateContext *)context withAnimationCoordinator:(UIFocusAnimationCoordinator *)coordinator
+{
+  ASCellNode *node = self.node;
+  return [node _didUpdateFocusInContext:context withAnimationCoordinator:coordinator];
+}
+
+- (NSArray<id<UIFocusEnvironment>> *)preferredFocusEnvironments API_AVAILABLE(ios(10.0), tvos(10.0))
+{
+  ASCellNode *node = self.node;
+  return [node _preferredFocusEnvironments];
+}
+
+- (UIView *)preferredFocusedView
+{
+  ASCellNode *node = self.node;
+  return [node _preferredFocusedView];
+}
+
+// Selection
 - (void)setSelected:(BOOL)selected
 {
   [super setSelected:selected];
@@ -64,12 +109,14 @@
   [self.node __setHighlightedFromUIKit:highlighted];
 }
 
+// Layout attributes
 - (void)setLayoutAttributes:(UICollectionViewLayoutAttributes *)layoutAttributes
 {
   _layoutAttributes = layoutAttributes;
   self.node.layoutAttributes = layoutAttributes;
 }
 
+// Reuse
 - (void)prepareForReuse
 {
   self.layoutAttributes = nil;

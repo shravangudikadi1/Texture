@@ -96,45 +96,48 @@ if (shouldApply) { _layer.layerProperty = (layerValueExpr); } else { ASDisplayNo
  */
 @implementation ASDisplayNode (UIViewBridge)
 
-#if TARGET_OS_TV
 // Focus Engine
-- (BOOL)canBecomeFocused
-{
-  return NO;
-}
-
 - (void)setNeedsFocusUpdate
 {
   ASDisplayNodeAssertMainThread();
-  [_view setNeedsFocusUpdate];
+  [self __setNeedsFocusUpdate];
 }
 
 - (void)updateFocusIfNeeded
 {
   ASDisplayNodeAssertMainThread();
-  [_view updateFocusIfNeeded];
+  [self __updateFocusIfNeeded];
+}
+
+- (BOOL)canBecomeFocused
+{
+  ASDisplayNodeAssertMainThread();
+  return [self __canBecomeFocused];
 }
 
 - (BOOL)shouldUpdateFocusInContext:(UIFocusUpdateContext *)context
 {
-  return NO;
+  ASDisplayNodeAssertMainThread();
+  return [self __shouldUpdateFocusInContext:context];
 }
 
 - (void)didUpdateFocusInContext:(UIFocusUpdateContext *)context withAnimationCoordinator:(UIFocusAnimationCoordinator *)coordinator
 {
-  
+  ASDisplayNodeAssertMainThread();
+  [self __didUpdateFocusInContext:context withAnimationCoordinator:coordinator];
+}
+
+- (NSArray<id<UIFocusEnvironment>> *)preferredFocusEnvironments
+{
+  ASDisplayNodeAssertMainThread();
+  return [self __preferredFocusEnvironments];
 }
 
 - (UIView *)preferredFocusedView
 {
-  if (self.nodeLoaded) {
-    return _view;
-  }
-  else {
-    return nil;
-  }
+  ASDisplayNodeAssertMainThread();
+  return [self __preferredFocusedView];
 }
-#endif
 
 - (BOOL)canBecomeFirstResponder
 {
@@ -930,7 +933,7 @@ nodeProperty = nodeValueExpr; _setToViewOnly(viewAndPendingViewStateProperty, vi
   _bridge_prologue_write;
   _setAccessibilityToViewAndProperty(_accessibilityLabel, accessibilityLabel, accessibilityLabel, accessibilityLabel);
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_11_0
-  if (AS_AVAILABLE_IOS(11)) {
+  if (AS_AVAILABLE_IOS_TVOS(11, 11)) {
     NSAttributedString *accessibilityAttributedLabel = accessibilityLabel ? [[NSAttributedString alloc] initWithString:accessibilityLabel] : nil;
     _setAccessibilityToViewAndProperty(_accessibilityAttributedLabel, accessibilityAttributedLabel, accessibilityAttributedLabel, accessibilityAttributedLabel);
   }
@@ -963,7 +966,7 @@ nodeProperty = nodeValueExpr; _setToViewOnly(viewAndPendingViewStateProperty, vi
   _bridge_prologue_write;
   _setAccessibilityToViewAndProperty(_accessibilityHint, accessibilityHint, accessibilityHint, accessibilityHint);
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_11_0
-  if (AS_AVAILABLE_IOS(11)) {
+  if (AS_AVAILABLE_IOS_TVOS(11, 11)) {
     NSAttributedString *accessibilityAttributedHint = accessibilityHint ? [[NSAttributedString alloc] initWithString:accessibilityHint] : nil;
     _setAccessibilityToViewAndProperty(_accessibilityAttributedHint, accessibilityAttributedHint, accessibilityAttributedHint, accessibilityAttributedHint);
   }
@@ -997,7 +1000,7 @@ nodeProperty = nodeValueExpr; _setToViewOnly(viewAndPendingViewStateProperty, vi
   _bridge_prologue_write;
   _setAccessibilityToViewAndProperty(_accessibilityValue, accessibilityValue, accessibilityValue, accessibilityValue);
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_11_0
-  if (AS_AVAILABLE_IOS(11)) {
+  if (AS_AVAILABLE_IOS_TVOS(11, 11)) {
     NSAttributedString *accessibilityAttributedValue = accessibilityValue ? [[NSAttributedString alloc] initWithString:accessibilityValue] : nil;
     _setAccessibilityToViewAndProperty(_accessibilityAttributedValue, accessibilityAttributedValue, accessibilityAttributedValue, accessibilityAttributedValue);
   }
@@ -1160,7 +1163,6 @@ nodeProperty = nodeValueExpr; _setToViewOnly(viewAndPendingViewStateProperty, vi
 }
 
 @end
-
 
 #pragma mark - ASAsyncTransactionContainer
 
