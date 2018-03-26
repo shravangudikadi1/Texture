@@ -12,7 +12,7 @@
 
 #import "ASDisplayNode+ASFocusInternal.h"
 #import <AsyncDisplayKit/ASDisplayNodeInternal.h>
-#import <AsyncDisplayKit/ASDisplayNode+FrameworkSubclasses.h>
+#import <AsyncDisplayKit/ASDisplayNode+Subclasses.h>
 
 @implementation ASDisplayNode (ASFocusInternal)
 
