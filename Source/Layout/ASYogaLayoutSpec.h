@@ -10,15 +10,15 @@
 //      http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#import <Foundation/Foundation.h>
 #import <AsyncDisplayKit/ASAvailability.h>
 
 #if YOGA /* YOGA */
 
-NS_ASSUME_NONULL_BEGIN
-
+#import <Foundation/Foundation.h>
 #import <AsyncDisplayKit/ASDisplayNode.h>
 #import <AsyncDisplayKit/ASLayoutSpec.h>
+
+NS_ASSUME_NONULL_BEGIN
 
 @interface ASYogaLayoutSpec : ASLayoutSpec
 @property (nonatomic) ASDisplayNode *rootNode;
