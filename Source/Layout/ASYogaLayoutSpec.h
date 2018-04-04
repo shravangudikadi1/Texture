@@ -10,6 +10,7 @@
 //      http://www.apache.org/licenses/LICENSE-2.0
 //
 
+#import <Foundation/Foundation.h>
 #import <AsyncDisplayKit/ASAvailability.h>
 
 #if YOGA /* YOGA */
