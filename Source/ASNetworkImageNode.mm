@@ -190,6 +190,8 @@
       return;
     }
     
+    URL = [URL copy];
+    
     ASDisplayNodeAssert(_imageWasSetExternally == NO, @"Setting a URL to an ASNetworkImageNode after setting an image changes its behavior from an ASImageNode to an ASNetworkImageNode. If this is what you want, set the image to nil first.");
     
     _imageWasSetExternally = NO;
@@ -298,15 +300,9 @@
 
 - (void)setShouldRenderProgressImages:(BOOL)shouldRenderProgressImages
 {
-  {
-    ASLockScopeSelf();
-    if (shouldRenderProgressImages == _shouldRenderProgressImages) {
-      return;
-    }
-    _shouldRenderProgressImages = shouldRenderProgressImages;
+  if (ASLockedSelfCompareAssign(_shouldRenderProgressImages, shouldRenderProgressImages)) {
+    [self _updateProgressImageBlockOnDownloaderIfNeeded];
   }
-
-  [self _updateProgressImageBlockOnDownloaderIfNeeded];
 }
 
 - (BOOL)shouldRenderProgressImages

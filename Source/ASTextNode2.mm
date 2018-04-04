@@ -75,14 +75,18 @@ static NSString *ASTextNodeTruncationTokenAttributeName = @"ASTextNodeTruncation
   CGFloat _shadowRadius;
   
   NSAttributedString *_attributedText;
+  NSAttributedString *_truncationAttributedText;
+  NSAttributedString *_additionalTruncationMessage;
   NSAttributedString *_composedTruncationText;
   NSArray<NSNumber *> *_pointSizeScaleFactors;
+  NSLineBreakMode _truncationMode;
   
   NSString *_highlightedLinkAttributeName;
   id _highlightedLinkAttributeValue;
   ASTextNodeHighlightStyle _highlightStyle;
   NSRange _highlightRange;
   ASHighlightOverlayLayer *_activeHighlightLayer;
+  UIColor *_placeholderColor;
   
   UILongPressGestureRecognizer *_longPressGestureRecognizer;
 }
@@ -679,14 +683,16 @@ static NSArray *DefaultLinkAttributeNames = @[ NSLinkAttributeName ];
 
 #pragma mark - Placeholders
 
+- (UIColor *)placeholderColor
+{
+  return ASLockedSelf(_placeholderColor);
+}
+
 - (void)setPlaceholderColor:(UIColor *)placeholderColor
 {
-  ASLockScopeSelf();
-  
-  _placeholderColor = placeholderColor;
-  
-  // prevent placeholders if we don't have a color
-  self.placeholderEnabled = placeholderColor != nil;
+  if (ASLockedSelfCompareAssignCopy(_placeholderColor, placeholderColor)) {
+    self.placeholderEnabled = CGColorGetAlpha(placeholderColor.CGColor) > 0;
+  }
 }
 
 - (UIImage *)placeholderImage
@@ -992,6 +998,11 @@ static NSAttributedString *DefaultTruncationAttributedString()
   }
 }
 
+- (NSAttributedString *)truncationAttributedText
+{
+  return ASLockedSelf(_truncationAttributedText);
+}
+
 - (void)setTruncationAttributedText:(NSAttributedString *)truncationAttributedText
 {
   if (ASLockedSelfCompareAssignCopy(_truncationAttributedText, truncationAttributedText)) {
@@ -999,11 +1010,21 @@ static NSAttributedString *DefaultTruncationAttributedString()
   }
 }
 
+- (NSAttributedString *)additionalTruncationMessage
+{
+  return ASLockedSelf(_additionalTruncationMessage);
+}
+
 - (void)setAdditionalTruncationMessage:(NSAttributedString *)additionalTruncationMessage
 {
   if (ASLockedSelfCompareAssignCopy(_additionalTruncationMessage, additionalTruncationMessage)) {
     [self _invalidateTruncationText];
   }
+}
+
+- (NSLineBreakMode)truncationMode
+{
+  return ASLockedSelf(_truncationMode);
 }
 
 - (void)setTruncationMode:(NSLineBreakMode)truncationMode

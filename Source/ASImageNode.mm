@@ -81,7 +81,7 @@ typedef void (^ASImageNodeDrawParametersBlock)(ASWeakMapEntry *entry);
 @property CGSize backingSize;
 @property CGRect imageDrawRect;
 @property BOOL isOpaque;
-@property (nonatomic, strong) UIColor *backgroundColor;
+@property (nonatomic, copy) UIColor *backgroundColor;
 @property (nonatomic, copy) ASDisplayNodeContextModifier willDisplayNodeContentWithRenderingContext;
 @property (nonatomic, copy) ASDisplayNodeContextModifier didDisplayNodeContentWithRenderingContext;
 @property (nonatomic, copy) asimagenode_modification_block_t imageModificationBlock;
@@ -150,7 +150,7 @@ typedef void (^ASImageNodeDrawParametersBlock)(ASWeakMapEntry *entry);
 @private
   UIImage *_image;
   ASWeakMapEntry *_weakCacheEntry;  // Holds a reference that keeps our contents in cache.
-
+  UIColor *_placeholderColor;
 
   void (^_displayCompletionBlock)(BOOL canceled);
   
@@ -285,21 +285,20 @@ typedef void (^ASImageNodeDrawParametersBlock)(ASWeakMapEntry *entry);
 
 - (UIImage *)image
 {
-  ASDN::MutexLocker l(__instanceLock__);
-  return _image;
+  return ASLockedSelf(_image);
 }
 
-- (UIImage *)_locked_Image
+- (UIColor *)placeholderColor
 {
-  return _image;
+  return ASLockedSelf(_placeholderColor);
 }
 
 - (void)setPlaceholderColor:(UIColor *)placeholderColor
 {
-  _placeholderColor = placeholderColor;
-
-  // prevent placeholders if we don't have a color
-  self.placeholderEnabled = placeholderColor != nil;
+  ASLockScopeSelf();
+  if (ASCompareAssignCopy(_placeholderColor, placeholderColor)) {
+    _placeholderEnabled = (placeholderColor != nil);
+  }
 }
 
 #pragma mark - Drawing
@@ -309,7 +308,7 @@ typedef void (^ASImageNodeDrawParametersBlock)(ASWeakMapEntry *entry);
   ASLockScopeSelf();
   
   ASImageNodeDrawParameters *drawParameters = [[ASImageNodeDrawParameters alloc] init];
-  drawParameters->_image = [self _locked_Image];
+  drawParameters->_image = _image;
   drawParameters->_bounds = [self threadSafeBounds];
   drawParameters->_opaque = self.opaque;
   drawParameters->_contentsScale = _contentsScaleForDisplay;

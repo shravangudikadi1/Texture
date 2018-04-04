@@ -85,18 +85,18 @@ typedef struct {
 /**
  * @abstract A bitmask representing which actions (layout spec, layout generation) should be measured.
  */
-@property (nonatomic, assign) ASDisplayNodePerformanceMeasurementOptions measurementOptions;
+@property (nonatomic) ASDisplayNodePerformanceMeasurementOptions measurementOptions;
 
 /**
  * @abstract A simple struct representing performance measurements collected.
  */
-@property (nonatomic, assign, readonly) ASDisplayNodePerformanceMeasurements performanceMeasurements;
+@property (nonatomic, readonly) ASDisplayNodePerformanceMeasurements performanceMeasurements;
 
 #if ASEVENTLOG_ENABLE
 /*
  * @abstract The primitive event tracing object. You shouldn't directly use it to log event. Use the ASDisplayNodeLogEvent macro instead.
  */
-@property (nonatomic, strong, readonly) ASEventLog *eventLog;
+@property (nonatomic, readonly) ASEventLog *eventLog;
 #endif
 
 /**
@@ -104,7 +104,7 @@ typedef struct {
  * an aggregation of all child nodes' accessibility labels. Nodes in this node's subtree that are also accessibility containers will
  * not be included in this aggregation, and will be exposed as separate accessibility elements to UIKit.
  */
-@property (nonatomic, assign) BOOL isAccessibilityContainer;
+@property (nonatomic) BOOL isAccessibilityContainer;
 
 /**
  * @abstract Invoked when a user performs a custom action on an accessible node. Nodes that are children of accessibility containers, have
@@ -171,7 +171,7 @@ extern void ASDisplayNodePerformBlockOnEveryYogaChild(ASDisplayNode * _Nullable 
 
 @interface ASDisplayNode (Yoga)
 
-@property (nonatomic, strong, nullable) NSArray *yogaChildren;
+@property (nonatomic, nullable) NSArray *yogaChildren;
 
 - (void)addYogaChild:(ASDisplayNode *)child;
 - (void)removeYogaChild:(ASDisplayNode *)child;
@@ -179,8 +179,8 @@ extern void ASDisplayNodePerformBlockOnEveryYogaChild(ASDisplayNode * _Nullable 
 
 - (void)semanticContentAttributeDidChange:(UISemanticContentAttribute)attribute;
 
-@property (nonatomic, assign) BOOL yogaLayoutInProgress;
-@property (nonatomic, strong, nullable) ASLayout *yogaCalculatedLayout;
+@property (nonatomic) BOOL yogaLayoutInProgress;
+@property (nonatomic, nullable) ASLayout *yogaCalculatedLayout;
 
 // These methods are intended to be used internally to Texture, and should not be called directly.
 - (BOOL)shouldHaveYogaMeasureFunc;
@@ -194,19 +194,19 @@ extern void ASDisplayNodePerformBlockOnEveryYogaChild(ASDisplayNode * _Nullable 
 - (YGNodeRef)yogaNodeCreateIfNeeded;
 - (void)destroyYogaNode;
 
-@property (nonatomic, assign, readonly) YGNodeRef yogaNode;
+@property (nonatomic, readonly) YGNodeRef yogaNode;
 
-@property (nonatomic, assign, readwrite) ASStackLayoutDirection flexDirection;
-@property (nonatomic, assign, readwrite) YGDirection direction;
-@property (nonatomic, assign, readwrite) ASStackLayoutJustifyContent justifyContent;
-@property (nonatomic, assign, readwrite) ASStackLayoutAlignItems alignItems;
-@property (nonatomic, assign, readwrite) YGPositionType positionType;
-@property (nonatomic, assign, readwrite) ASEdgeInsets position;
-@property (nonatomic, assign, readwrite) ASEdgeInsets margin;
-@property (nonatomic, assign, readwrite) ASEdgeInsets padding;
-@property (nonatomic, assign, readwrite) ASEdgeInsets border;
-@property (nonatomic, assign, readwrite) CGFloat aspectRatio;
-@property (nonatomic, assign, readwrite) YGWrap flexWrap;
+@property (nonatomic, readwrite) ASStackLayoutDirection flexDirection;
+@property (nonatomic, readwrite) YGDirection direction;
+@property (nonatomic, readwrite) ASStackLayoutJustifyContent justifyContent;
+@property (nonatomic, readwrite) ASStackLayoutAlignItems alignItems;
+@property (nonatomic, readwrite) YGPositionType positionType;
+@property (nonatomic, readwrite) ASEdgeInsets position;
+@property (nonatomic, readwrite) ASEdgeInsets margin;
+@property (nonatomic, readwrite) ASEdgeInsets padding;
+@property (nonatomic, readwrite) ASEdgeInsets border;
+@property (nonatomic, readwrite) CGFloat aspectRatio;
+@property (nonatomic, readwrite) YGWrap flexWrap;
 
 @end
 

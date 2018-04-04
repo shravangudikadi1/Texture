@@ -65,10 +65,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, strong) UITextView *textView;
 
 //! @abstract The attributes to apply to new text being entered by the user.
-@property (nonatomic, readwrite, strong, nullable) NSDictionary<NSString *, id> *typingAttributes;
+@property (nonatomic, readwrite, nullable) NSDictionary<NSString *, id> *typingAttributes;
 
 //! @abstract The range of text currently selected. If length is zero, the range is the cursor location.
-@property (nonatomic, readwrite, assign) NSRange selectedRange;
+@property (nonatomic, readwrite) NSRange selectedRange;
 
 #pragma mark - Placeholder
 /**
@@ -82,7 +82,7 @@ NS_ASSUME_NONNULL_BEGIN
   @abstract The styled placeholder text displayed by the text node while no text is entered
   @discussion The placeholder is displayed when the user has not entered any text and the keyboard is not visible.
  */
-@property (nonatomic, readwrite, strong, nullable) NSAttributedString *attributedPlaceholderText;
+@property (nonatomic, readwrite, nullable) NSAttributedString *attributedPlaceholderText;
 
 #pragma mark - Modifying User Text
 /**
@@ -104,7 +104,7 @@ NS_ASSUME_NONNULL_BEGIN
  @abstract The maximum number of lines to display. Additional lines will require scrolling.
  @default 0 (No limit)
  */
-@property (nonatomic, assign) NSUInteger maximumLinesToDisplay;
+@property (nonatomic) NSUInteger maximumLinesToDisplay;
 
 /**
   @abstract Indicates whether the receiver's text view is the first responder, and thus has the keyboard visible and is prepared for editing by the user.
@@ -130,22 +130,22 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  @abstract <UITextInputTraits> properties.
  */
-@property(nonatomic, readwrite, assign) UITextAutocapitalizationType autocapitalizationType; // default is UITextAutocapitalizationTypeSentences
-@property(nonatomic, readwrite, assign) UITextAutocorrectionType autocorrectionType;         // default is UITextAutocorrectionTypeDefault
-@property(nonatomic, readwrite, assign) UITextSpellCheckingType spellCheckingType;           // default is UITextSpellCheckingTypeDefault;
-@property(nonatomic, readwrite, assign) UIKeyboardType keyboardType;                         // default is UIKeyboardTypeDefault
-@property(nonatomic, readwrite, assign) UIKeyboardAppearance keyboardAppearance;             // default is UIKeyboardAppearanceDefault
-@property(nonatomic, readwrite, assign) UIReturnKeyType returnKeyType;                       // default is UIReturnKeyDefault (See note under UIReturnKeyType enum)
-@property(nonatomic, readwrite, assign) BOOL enablesReturnKeyAutomatically;                  // default is NO (when YES, will automatically disable return key when text widget has zero-length contents, and will automatically enable when text widget has non-zero-length contents)
-@property(nonatomic, readwrite, assign, getter=isSecureTextEntry) BOOL secureTextEntry;      // default is NO
+@property(nonatomic, readwrite) UITextAutocapitalizationType autocapitalizationType; // default is UITextAutocapitalizationTypeSentences
+@property(nonatomic, readwrite) UITextAutocorrectionType autocorrectionType;         // default is UITextAutocorrectionTypeDefault
+@property(nonatomic, readwrite) UITextSpellCheckingType spellCheckingType;           // default is UITextSpellCheckingTypeDefault;
+@property(nonatomic, readwrite) UIKeyboardType keyboardType;                         // default is UIKeyboardTypeDefault
+@property(nonatomic, readwrite) UIKeyboardAppearance keyboardAppearance;             // default is UIKeyboardAppearanceDefault
+@property(nonatomic, readwrite) UIReturnKeyType returnKeyType;                       // default is UIReturnKeyDefault (See note under UIReturnKeyType enum)
+@property(nonatomic, readwrite) BOOL enablesReturnKeyAutomatically;                  // default is NO (when YES, will automatically disable return key when text widget has zero-length contents, and will automatically enable when text widget has non-zero-length contents)
+@property(nonatomic, readwrite, getter=isSecureTextEntry) BOOL secureTextEntry;      // default is NO
 
 @end
 
 @interface ASEditableTextNode (Unavailable)
 
-- (instancetype)initWithLayerBlock:(ASDisplayNodeLayerBlock)viewBlock didLoadBlock:(nullable ASDisplayNodeDidLoadBlock)didLoadBlock __unavailable;
+- (instancetype)initWithLayerBlock:(ASDisplayNodeLayerBlock)viewBlock didLoadBlock:(nullable ASDisplayNodeDidLoadBlock)didLoadBlock NS_UNAVAILABLE;
 
-- (instancetype)initWithViewBlock:(ASDisplayNodeViewBlock)viewBlock didLoadBlock:(nullable ASDisplayNodeDidLoadBlock)didLoadBlock __unavailable;
+- (instancetype)initWithViewBlock:(ASDisplayNodeViewBlock)viewBlock didLoadBlock:(nullable ASDisplayNodeDidLoadBlock)didLoadBlock NS_UNAVAILABLE;
 
 @end
 
