@@ -14,16 +14,11 @@
 
 #if YOGA /* YOGA */
 
-#import <Foundation/Foundation.h>
 #import <AsyncDisplayKit/ASDisplayNode.h>
 #import <AsyncDisplayKit/ASLayoutSpec.h>
 
-NS_ASSUME_NONULL_BEGIN
-
 @interface ASYogaLayoutSpec : ASLayoutSpec
-@property (nonatomic) ASDisplayNode *rootNode;
+@property (nonatomic, nonnull) ASDisplayNode *rootNode;
 @end
-
-NS_ASSUME_NONULL_END
 
 #endif /* YOGA */
