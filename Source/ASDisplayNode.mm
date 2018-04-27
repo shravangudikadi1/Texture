@@ -57,6 +57,10 @@
 #else
   #define TIME_SCOPED(outVar)
 #endif
+// This is trying to merge non-rangeManaged with rangeManaged, so both range-managed and standalone nodes wait before firing their exit-visibility handlers, as UIViewController transitions now do rehosting at both start & end of animation.
+// Enable this will mitigate interface updating state when coalescing disabled.
+// TODO(wsdwsd0829): Rework enabling code to ensure that interface state behavior is not altered when ASCATransactionQueue is disabled.
+#define ENABLE_NEW_EXIT_HIERARCHY_BEHAVIOR 0
 
 static ASDisplayNodeNonFatalErrorBlock _nonFatalErrorBlock = nil;
 NSInteger const ASDefaultDrawingPriority = ASDefaultTransactionPriority;
@@ -309,6 +313,14 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   
   _flags.canClearContentsOfLayer = YES;
   _flags.canCallSetNeedsDisplayOfLayer = YES;
+
+  _fallbackSafeAreaInsets = UIEdgeInsetsZero;
+  _fallbackInsetsLayoutMarginsFromSafeArea = YES;
+  _isViewControllerRoot = NO;
+
+  _automaticallyRelayoutOnSafeAreaChanges = NO;
+  _automaticallyRelayoutOnLayoutMarginsChanges = NO;
+
   ASDisplayNodeLogEvent(self, @"init");
 }
 
@@ -878,85 +890,137 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   _flags.viewEverHadAGestureRecognizerAttached = YES;
 }
 
+- (UIEdgeInsets)fallbackSafeAreaInsets
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _fallbackSafeAreaInsets;
+}
+
+- (void)setFallbackSafeAreaInsets:(UIEdgeInsets)insets
+{
+  BOOL needsManualUpdate;
+  BOOL updatesLayoutMargins;
+
+  {
+    ASDN::MutexLocker l(__instanceLock__);
+    ASDisplayNodeAssertThreadAffinity(self);
+
+    if (UIEdgeInsetsEqualToEdgeInsets(insets, _fallbackSafeAreaInsets)) {
+      return;
+    }
+
+    _fallbackSafeAreaInsets = insets;
+    needsManualUpdate = !AS_AT_LEAST_IOS11 || _flags.layerBacked;
+    updatesLayoutMargins = needsManualUpdate && [self _locked_insetsLayoutMarginsFromSafeArea];
+  }
+
+  if (needsManualUpdate) {
+    [self safeAreaInsetsDidChange];
+  }
+
+  if (updatesLayoutMargins) {
+    [self layoutMarginsDidChange];
+  }
+}
+
+- (void)_fallbackUpdateSafeAreaOnChildren
+{
+  ASDisplayNodeAssertThreadAffinity(self);
+
+  UIEdgeInsets insets = self.safeAreaInsets;
+  CGRect bounds = self.bounds;
+
+  for (ASDisplayNode *child in self.subnodes) {
+    if (AS_AT_LEAST_IOS11 && !child.layerBacked) {
+      // In iOS 11 view-backed nodes already know what their safe area is.
+      continue;
+    }
+
+    if (child.viewControllerRoot) {
+      // Its safe area is controlled by a view controller. Don't override it.
+      continue;
+    }
+
+    CGRect childFrame = child.frame;
+    UIEdgeInsets childInsets = UIEdgeInsetsMake(MAX(insets.top    - (CGRectGetMinY(childFrame) - CGRectGetMinY(bounds)), 0),
+                                                MAX(insets.left   - (CGRectGetMinX(childFrame) - CGRectGetMinX(bounds)), 0),
+                                                MAX(insets.bottom - (CGRectGetMaxY(bounds) - CGRectGetMaxY(childFrame)), 0),
+                                                MAX(insets.right  - (CGRectGetMaxX(bounds) - CGRectGetMaxX(childFrame)), 0));
+
+    child.fallbackSafeAreaInsets = childInsets;
+  }
+}
+
+- (BOOL)isViewControllerRoot
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _isViewControllerRoot;
+}
+
+- (void)setViewControllerRoot:(BOOL)flag
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  _isViewControllerRoot = flag;
+}
+
+- (BOOL)automaticallyRelayoutOnSafeAreaChanges
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _automaticallyRelayoutOnSafeAreaChanges;
+}
+
+- (void)setAutomaticallyRelayoutOnSafeAreaChanges:(BOOL)flag
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  _automaticallyRelayoutOnSafeAreaChanges = flag;
+}
+
+- (BOOL)automaticallyRelayoutOnLayoutMarginsChanges
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  return _automaticallyRelayoutOnLayoutMarginsChanges;
+}
+
+- (void)setAutomaticallyRelayoutOnLayoutMarginsChanges:(BOOL)flag
+{
+  ASDN::MutexLocker l(__instanceLock__);
+  _automaticallyRelayoutOnLayoutMarginsChanges = flag;
+}
+
 #pragma mark UIView + _ASDisplayView
 
-#define RETURN_NODE_UIVIEW_METHOD(__sel) \
-  /* All UIView methods should be called on the main thread */ \
+#define HANDLE_NODE_UIVIEW_METHOD_0(__sel, __retval) HANDLE_NODE_UIVIEW_METHOD_2(__sel, NULL, NULL, __retval)
+#define HANDLE_NODE_UIVIEW_METHOD_1(__sel, __var, __retval) HANDLE_NODE_UIVIEW_METHOD_2(__sel, __var, NULL, __retval)
+#define HANDLE_NODE_UIVIEW_METHOD_2(__sel, __var1, __var2, __retval) \
   ASDisplayNodeAssertMainThread(); \
+  SEL selector; \
+  id var1 = __var1; \
+  id var2 = __var2; \
   if (checkFlag(Synchronous)) { \
-    /* If the view is not a _ASDisplayView subclass (Synchronous) just call through to the view as we
-     expect it's a non _ASDisplayView subclass that will respond */ \
-    return [_view __sel]; \
+    selector = @selector(__sel); \
   } else { \
     if (ASSubclassOverridesSelector([_ASDisplayView class], _viewClass, @selector(__sel))) { \
-    /* If the subclass overwrites the selector just call through
-       to it as we expect it will handle it */ \
-      return [_view __sel]; \
+      selector = @selector(__sel); \
     } else { \
-      /* Call through to _ASDisplayView's superclass to get it handled */ \
-      return [(_ASDisplayView *)_view __##__sel]; \
+      selector = @selector(__##__sel); \
     } \
   } \
-
-#define RETURN_NODE_UIVIEW_METHOD_WITH_OBJECT(__sel, __var) \
-  ASDisplayNodeAssertMainThread(); \
-  if (checkFlag(Synchronous)) { \
-    return [_view performSelector:@selector(__sel) withObject:__var]; \
-  } else { \
-    if (ASSubclassOverridesSelector([_ASDisplayView class], _viewClass, @selector(__sel))) { \
-      return [_view performSelector:@selector(__sel) withObject:__var]; \
-    } else { \
-      return [(_ASDisplayView *)_view performSelector:@selector(__##__sel) withObject:__var]; \
-    } \
+  \
+  NSInvocation *invocation = [NSInvocation invocationWithMethodSignature: [[_view class] instanceMethodSignatureForSelector:selector]]; \
+  [invocation setSelector:selector]; \
+  [invocation setTarget:_view]; \
+  \
+  if (var1 != NULL) { \
+    [invocation setArgument:&var1 atIndex:0]; \
   } \
-
-#define RETURN_NODE_UIVIEW_METHOD_WITH_OBJECTS(__sel, __var1, __var2) \
-  ASDisplayNodeAssertMainThread(); \
-  if (checkFlag(Synchronous)) { \
-    return [_view performSelector:@selector(__sel) withObject:__var1 withObject:__var2]; \
-  } else { \
-    if (ASSubclassOverridesSelector([_ASDisplayView class], _viewClass, @selector(__sel))) { \
-      return [_view performSelector:@selector(__sel) withObject:__var1 withObject:__var2]; \
-    } else { \
-      return [(_ASDisplayView *)_view performSelector:@selector(__##__sel) withObject:__var1 withObject:__var2]; \
-    } \
+  if (var2 != NULL) { \
+    [invocation setArgument:&var2 atIndex:1]; \
   } \
-
-#define HANDLE_NODE_UIVIEW_METHOD(__sel) \
-  ASDisplayNodeAssertMainThread(); \
-  if (checkFlag(Synchronous)) { \
-    [_view __sel]; \
-  } else { \
-    if (ASSubclassOverridesSelector([_ASDisplayView class], _viewClass, @selector(__sel))) { \
-      [_view __sel]; \
-    } else { \
-      [(_ASDisplayView *)_view __##__sel]; \
-    } \
-  } \
-
-#define HANDLE_NODE_UIVIEW_METHOD_WITH_OBJECT(__sel, __var) \
-  ASDisplayNodeAssertMainThread(); \
-  if (checkFlag(Synchronous)) { \
-    [_view performSelector:@selector(__sel) withObject:__var]; \
-  } else { \
-    if (ASSubclassOverridesSelector([_ASDisplayView class], _viewClass, @selector(__sel))) { \
-      [_view performSelector:@selector(__sel) withObject:__var]; \
-    } else { \
-      [(_ASDisplayView *)_view performSelector:@selector(__##__sel) withObject:__var]; \
-    } \
-  } \
-
-#define HANDLE_NODE_UIVIEW_METHOD_WITH_OBJECTS(__sel, __var1, __var2) \
-  ASDisplayNodeAssertMainThread(); \
-  if (checkFlag(Synchronous)) { \
-    [_view performSelector:@selector(__sel) withObject:__var1 withObject:__var2]; \
-  } else { \
-    if (ASSubclassOverridesSelector([_ASDisplayView class], _viewClass, @selector(__sel))) { \
-      [_view performSelector:@selector(__sel) withObject:__var1 withObject:__var2]; \
-    } else { \
-      [(_ASDisplayView *)_view performSelector:@selector(__##__sel) withObject:__var1 withObject:__var2]; \
-    } \
-  } \
+  \
+  [invocation invoke]; \
+  \
+  void *returnValue = __retval; \
+  [invocation getReturnValue:returnValue]; \
 
 - (void)checkResponderCompatibility
 {
@@ -982,19 +1046,23 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return NO;
   }
   
-  RETURN_NODE_UIVIEW_METHOD(canBecomeFirstResponder);
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(canBecomeFirstResponder, &retVal);
+  return retVal;
 }
 
 - (BOOL)__becomeFirstResponder
 {
-  if (![self canBecomeFirstResponder]) {
-    return NO;
-  }
-  
   // Note: This implicitly loads the view if it hasn't been loaded yet.
   [self view];
 
-  RETURN_NODE_UIVIEW_METHOD(becomeFirstResponder);
+  if (![self canBecomeFirstResponder]) {
+    return NO;
+  }
+
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(becomeFirstResponder, &retVal);
+  return retVal;
 }
 
 - (BOOL)__canResignFirstResponder
@@ -1004,7 +1072,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return YES;
   }
   
-  RETURN_NODE_UIVIEW_METHOD(canResignFirstResponder);
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(canResignFirstResponder, &retVal);
+  return retVal;
 }
 
 - (BOOL)__resignFirstResponder
@@ -1016,7 +1086,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   // Note: This implicitly loads the view if it hasn't been loaded yet.
   [self view];
   
-  RETURN_NODE_UIVIEW_METHOD(resignFirstResponder);
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(resignFirstResponder, &retVal);
+  return retVal;
 }
 
 - (BOOL)__isFirstResponder
@@ -1026,7 +1098,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return NO;
   }
   
-  RETURN_NODE_UIVIEW_METHOD(isFirstResponder);
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(isFirstResponder, &retVal);
+  return retVal;
 }
 
 #pragma mark - Focus Engine
@@ -1036,7 +1110,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return;
   }
   
-  HANDLE_NODE_UIVIEW_METHOD(setNeedsFocusUpdate);
+  HANDLE_NODE_UIVIEW_METHOD_0(setNeedsFocusUpdate, NULL);
 }
 
 - (void)__updateFocusIfNeeded
@@ -1045,7 +1119,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return;
   }
   
-  HANDLE_NODE_UIVIEW_METHOD(updateFocusIfNeeded);
+  HANDLE_NODE_UIVIEW_METHOD_0(updateFocusIfNeeded, NULL);
 }
 
 - (BOOL)__canBecomeFocused
@@ -1054,7 +1128,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return NO;
   }
   
-  RETURN_NODE_UIVIEW_METHOD(canBecomeFocused);
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(canBecomeFocused, &retVal);
+  return retVal;
 }
 
 - (BOOL)__shouldUpdateFocusInContext:(UIFocusUpdateContext *)context
@@ -1063,7 +1139,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return NO;
   }
   
-  RETURN_NODE_UIVIEW_METHOD_WITH_OBJECT(shouldUpdateFocusInContext:, context);
+  BOOL retVal;
+  HANDLE_NODE_UIVIEW_METHOD_1(shouldUpdateFocusInContext:, context, &retVal);
+  return retVal;
 }
 
 - (void)__didUpdateFocusInContext:(UIFocusUpdateContext *)context withAnimationCoordinator:(UIFocusAnimationCoordinator *)coordinator
@@ -1072,7 +1150,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     return;
   }
   
-  HANDLE_NODE_UIVIEW_METHOD_WITH_OBJECTS(didUpdateFocusInContext:withAnimationCoordinator:, context, coordinator);
+  HANDLE_NODE_UIVIEW_METHOD_2(didUpdateFocusInContext:withAnimationCoordinator:, context, coordinator, NULL);
 }
 
 - (NSArray<id<UIFocusEnvironment>> *)__preferredFocusEnvironments
@@ -1080,7 +1158,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   // Note: This implicitly loads the view if it hasn't been loaded yet.
   [self view];
   
-  RETURN_NODE_UIVIEW_METHOD(preferredFocusEnvironments);
+  NSArray<id<UIFocusEnvironment>> *retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(preferredFocusEnvironments, &retVal);
+  return retVal;
 }
 
 - (UIView *)__preferredFocusedView
@@ -1088,7 +1168,9 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   // Note: This implicitly loads the view if it hasn't been loaded yet.
   [self view];
   
-  RETURN_NODE_UIVIEW_METHOD(preferredFocusedView);
+  UIView *retVal;
+  HANDLE_NODE_UIVIEW_METHOD_0(preferredFocusedView, &retVal);
+  return retVal;
 }
 
 #pragma mark <ASDebugNameProvider>
@@ -1191,6 +1273,8 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
       [self layoutDidFinish];
     });
   }
+
+  [self _fallbackUpdateSafeAreaOnChildren];
 }
 
 - (void)layoutDidFinish
@@ -3047,6 +3131,13 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
   // same runloop.  Strategy: strong reference (might be the last!), wait one runloop, and confirm we are still outside the hierarchy (both layer-backed and view-backed).
   // TODO: This approach could be optimized by only performing the dispatch for root elements + recursively apply the interface state change. This would require a closer
   // integration with _ASDisplayLayer to ensure that the superlayer pointer has been cleared by this stage (to check if we are root or not), or a different delegate call.
+
+#if !ENABLE_NEW_EXIT_HIERARCHY_BEHAVIOR
+  if (![self supportsRangeManagedInterfaceState]) {
+    self.interfaceState = ASInterfaceStateNone;
+    return;
+  }
+#endif
   if (ASInterfaceStateIncludesVisible(_pendingInterfaceState)) {
     void(^exitVisibleInterfaceState)(void) = ^{
       // This block intentionally retains self.
@@ -3055,11 +3146,12 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
       BOOL isVisible = ASInterfaceStateIncludesVisible(_pendingInterfaceState);
       ASInterfaceState newState = (_pendingInterfaceState & ~ASInterfaceStateVisible);
       __instanceLock__.unlock();
-
       if (!isStillInHierarchy && isVisible) {
+#if ENABLE_NEW_EXIT_HIERARCHY_BEHAVIOR
         if (![self supportsRangeManagedInterfaceState]) {
           newState = ASInterfaceStateNone;
         }
+#endif
         self.interfaceState = newState;
       }
     };
