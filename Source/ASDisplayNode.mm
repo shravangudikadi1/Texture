@@ -1011,16 +1011,18 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   [invocation setTarget:_view]; \
   \
   if (var1 != NULL) { \
-    [invocation setArgument:&var1 atIndex:0]; \
+    [invocation setArgument:&var1 atIndex:2]; \
   } \
   if (var2 != NULL) { \
-    [invocation setArgument:&var2 atIndex:1]; \
+    [invocation setArgument:&var2 atIndex:3]; \
   } \
   \
   [invocation invoke]; \
   \
   void *returnValue = __retval; \
-  [invocation getReturnValue:returnValue]; \
+  if (returnValue != NULL) { \
+    [invocation getReturnValue:returnValue]; \
+  } \
 
 - (void)checkResponderCompatibility
 {
